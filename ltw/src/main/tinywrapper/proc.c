@@ -1,6 +1,6 @@
 /**
  * Created by: artDev
- * Copyright (c) 2025 artDev, SerpentSpirale, PojavLauncherTeam, Digital Genesis LLC.
+ * Copyright (c) 2025 artDev, SerpentSpirale, CADIndie.
  * For use under LGPL-3.0
  */
 #include <EGL/egl.h>
@@ -39,8 +39,16 @@ static void init_es3_proc() {
 }
 
 __attribute__((constructor, used)) void proc_init(){
-    void* eglHandle = dlopen("libEGL.so", RTLD_LAZY | RTLD_LOCAL);
-    if(eglHandle == NULL) error_sysegl();
+    const char* systemEglPath = "libEGL.so";
+    const char* eglPath = getenv("LIBGL_EGL") != NULL ? getenv("LIBGL_EGL") : systemEglPath;
+    int flags = RTLD_LAZY | RTLD_LOCAL;
+    void* eglHandle = dlopen(eglPath, flags);
+    if(eglHandle == NULL){
+        printf("LTWInit: failed loading custom libEGL, using default\n");
+        eglHandle = dlopen(systemEglPath, flags);
+        if(eglHandle == NULL)
+            error_sysegl();
+    }
     host_eglGetProcAddress = dlsym(eglHandle, "eglGetProcAddress");
     if(host_eglGetProcAddress == NULL) error_sysegl();
     init_egl();
@@ -54,7 +62,7 @@ __attribute__((used)) eglMustCastToProperFunctionPointerType glXGetProcAddress(c
 
 static eglMustCastToProperFunctionPointerType resolve_stub(const char* procname) {
     size_t procnamelen = strlen(procname);
-    size_t stublen = procnamelen + 5;
+    size_t stublen = procnamelen + 6;
     char stub_procname[stublen];
     memcpy(stub_procname, "stub_", 5);
     memcpy(stub_procname + 5, procname, procnamelen);
